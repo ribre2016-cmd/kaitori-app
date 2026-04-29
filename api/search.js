@@ -19,20 +19,25 @@ function clean(text) {
   return String(text || "")
     .replace(/\s+/g, " ")
     .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
+    .replace(/�/g, "")
     .trim();
 }
 
 function extractPrice(text) {
   const t = clean(text);
+
   const patterns = [
-    /買取価格[^0-9]{0,50}([0-9,]+)\s*円/,
-    /買取[^0-9]{0,50}([0-9,]+)\s*円/,
+    /買取価格[^0-9]{0,80}([0-9,]+)\s*円/,
+    /買取[^0-9]{0,80}([0-9,]+)\s*円/,
     /([0-9,]+)\s*円/
   ];
 
   for (const p of patterns) {
     const m = t.match(p);
-    if (m) return Number(m[1].replace(/,/g, ""));
+    if (m) {
+      const n = Number(m[1].replace(/,/g, ""));
+      if (Number.isFinite(n)) return n;
+    }
   }
 
   return null;
@@ -50,6 +55,7 @@ function extractTitle($) {
 
 function extractReleaseDate(text) {
   const t = clean(text);
+
   const m =
     t.match(/発売日[:：]?\s*([0-9]{4}[\/年.-][0-9]{1,2}[\/月.-][0-9]{1,2}日?)/) ||
     t.match(/([0-9]{4}[\/年.-][0-9]{1,2}[\/月.-][0-9]{1,2}日?)\s*発売/);
@@ -61,6 +67,7 @@ function extractModel(text, keyword) {
   if (!/^\d{8,14}$/.test(keyword)) return keyword;
 
   const t = clean(text);
+
   const m =
     t.match(/型番[:：]?\s*([A-Za-z0-9-]{3,30})/) ||
     t.match(/規格品番[:：]?\s*([A-Za-z0-9-]{3,30})/) ||
@@ -71,9 +78,11 @@ function extractModel(text, keyword) {
 
 function extractGenre(text) {
   const t = clean(text);
+
   const m = t.match(
-    /(洋楽CD|邦楽CD|アニメ系CD|中古CD|DVD|Blu-ray|ブルーレイ|ゲーム|フィギュア|コミック|書籍|おもちゃ|ホビー)/
+    /(洋楽CD|邦楽CD|アニメ系CD|中古CD|CD \/ DVD|CD\/DVD|DVD|Blu-ray|ブルーレイ|ゲーム|フィギュア|コミック|書籍|おもちゃ|ホビー)/
   );
+
   return m ? m[1] : null;
 }
 
@@ -81,15 +90,27 @@ async function fetchHtml(url) {
   const res = await fetch(url, {
     headers: {
       "User-Agent": UA,
+      "Accept":
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "Accept-Language": "ja-JP,ja;q=0.9,en;q=0.8"
-    }
+    },
+    redirect: "follow"
   });
+
+  const buffer = await res.arrayBuffer();
+
+  let html = "";
+  try {
+    html = new TextDecoder("shift_jis").decode(buffer);
+  } catch {
+    html = new TextDecoder("utf-8").decode(buffer);
+  }
 
   return {
     ok: res.ok,
     status: res.status,
     url: res.url,
-    html: await res.text()
+    html
   };
 }
 
@@ -105,7 +126,8 @@ async function searchShop(name, keyword) {
     const bodyText = $("body").text();
 
     return {
-      ok: true,
+      ok: result.ok,
+      status: result.status,
       keyword,
       url,
       detailUrl: result.url || url,
@@ -126,7 +148,7 @@ async function searchShop(name, keyword) {
       genre: null,
       releaseDate: null,
       model: null,
-      error: e.message
+      error: e.message || String(e)
     };
   }
 }
