@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "functions": {
+    "api/search.js": {
+      "maxDuration": 20
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
+}

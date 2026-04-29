@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>買取比較 A/B 自動価格版</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/style.css" />
+
+  <script async src="https://ga.jspm.io/npm:es-module-shims@2.6.2/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@scandit/web-datacapture-core": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.2.1/build/js/index.js",
+        "@scandit/web-datacapture-barcode": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.2.1/build/js/index.js",
+        "@scandit/web-datacapture-core/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.2.1/",
+        "@scandit/web-datacapture-barcode/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.2.1/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>買取比較 A/B</h1>
+      <p class="pc-only">PC版：価格・ジャンル・発売日・型番</p>
+      <p class="mobile-only">携帯版：価格だけ大きく表示</p>
+    </header>
+
+    <section class="card">
+      <label for="keyword">JAN / ISBN / 型番 / 商品名</label>
+      <div class="search-row">
+        <input id="keyword" type="text" placeholder="例：4988021805284 / avcl1234" autocomplete="off" />
+        <button id="searchBtn">検索</button>
+      </div>
+      <button id="openScannerBtn" class="scan-main">📷 Scanditで読取</button>
+      <p id="status">検索するとA/Bの価格を自動取得します。</p>
+      <pre id="mainDebug"></pre>
+    </section>
+
+    <section class="mobile-price mobile-only">
+      <div class="price-mini a"><span>A</span><strong id="mobilePriceA">-</strong></div>
+      <div class="price-mini b"><span>B</span><strong id="mobilePriceB">-</strong></div>
+      <div id="mobileDiff" class="mobile-diff">差額：-</div>
+    </section>
+
+    <section class="compare">
+      <div class="card shop-card">
+        <h2>A</h2>
+        <p class="price-main" id="priceA">-</p>
+        <p class="search-word">検索語：<span id="wordA">-</span></p>
+        <div class="pc-details pc-only">
+          <div><strong>タイトル</strong><span id="titleA">-</span></div>
+          <div><strong>ジャンル</strong><span id="genreA">-</span></div>
+          <div><strong>発売日</strong><span id="releaseA">-</span></div>
+          <div><strong>型番</strong><span id="modelA">-</span></div>
+        </div>
+        <a id="linkA" class="open-btn" href="#" target="_blank" rel="noopener">Aを開く</a>
+      </div>
+
+      <div class="card shop-card">
+        <h2>B</h2>
+        <p class="price-main" id="priceB">-</p>
+        <p class="search-word">検索語：<span id="wordB">-</span></p>
+        <div class="pc-details pc-only">
+          <div><strong>タイトル</strong><span id="titleB">-</span></div>
+          <div><strong>ジャンル</strong><span id="genreB">-</span></div>
+          <div><strong>発売日</strong><span id="releaseB">-</span></div>
+          <div><strong>型番</strong><span id="modelB">-</span></div>
+        </div>
+        <a id="linkB" class="open-btn orange" href="#" target="_blank" rel="noopener">Bを開く</a>
+      </div>
+    </section>
+
+    <section class="card pc-diff pc-only">
+      <h2>差額</h2>
+      <p id="diff">-</p>
+    </section>
+
+    <section class="card history-card">
+      <h2>検索履歴</h2>
+      <button id="clearHistoryBtn" class="gray small">履歴削除</button>
+      <ul id="history"></ul>
+    </section>
+  </main>
+
+  <div id="scannerModal" class="scanner-modal hidden">
+    <div class="scanner-header">
+      <button id="closeScannerBtn" class="icon-btn">×</button>
+      <div class="scanner-title"><strong>Scandit読取</strong><span id="scannerStatus">起動中…</span></div>
+      <button id="torchBtn" class="icon-btn">🔦</button>
+    </div>
+    <div class="scanner-stage">
+      <div id="dataCaptureView"></div>
+      <div class="scan-guide"><div class="scan-box"><div class="laser"></div></div></div>
+    </div>
+    <div class="scanner-bottom">
+      <p>最後の読取：<b id="lastRead">なし</b></p>
+      <pre id="debugMsg" class="debug"></pre>
+      <ul id="scanHistory"></ul>
+    </div>
+  </div>
+
+  <script>window.SCANDIT_LICENSE_KEY = `AilnNSnyDjTYEzgs7OaN2CUMxci2CkamJDcEUast65Y2JN/kO2o1hslI9PUhbe9EwgfHt9M2gW0KMMwMcV6zOQJYkkxdNNpEQX94z94mTJfdOL2cSzRb3QwrfTnsT95siU7LtuFF3aaPJ7aJbGQrV/UlNVBDSsZ/+U12OkRXxkPeUeglc1mRL+9hXDbvToI5ulO1/35NexGcWWaaHk1nDW993nWCSTEI4EyZFbJJoDQgbDqOJ0weLxBlCr+pRCL9Dgps4g18dfBVbd7XpX0yuwlMtmZEdZz/Ck/QepJ8rDkgcTMYNkdf2xld0rMpZhY5iSKYHSdNcRr2SzCPTFGRd6V5sXuEPnbmqWVC68AL5sffYfxWE2ZmOjEm1S+FZesN5GtoED55B2y0Ys9zRDSFcdJ9/iwqatT3VWv0nLlPvh93eV2m/STo1TIKuThuUeyjtyurEzprclQ7fCFIjmtV4uYp2zzWWo7/A2BVMk52oOtoWIfKQQZRdINdr5GpbCDRdwMOCEBYtw3LZs+gbhrTs1ErEHew7mzVzlWKJMI1WsrfXwQMWQQ39luzFXx2TT9y/Kt0vcXgsK5jtJ4/MxVbdKDHmPel1OL6ReKpY8I5lkaDeNnpErtwWsSg4/YMA9nNbZtMGPprlpqh/3/BYYAR7TbrMBjoUG7XmL0CI7mvsTOMUdJi6cft8pmAxzUntZ8GWBd3NzJ0KdBMwfNFHq8r/92p34GgZu1ugparApS10gT/nOEFS7SwADqOH//CT7iFMJUSMKh0oHKFjxQ5xSTBw1s/dElgtdogDT3+9w08FF9jp+nbglFT3PqzPHw9GR8NRB1EN5WBC6la35OPUXxd0j8f9NAB54xquLHnBOC2iiSV13tcD8LR/0xZvifBa28Vc3mOrWYEDmehHKWoAKk/FjAUjpW43L6XbjTmlgAPLVxhHCJsnuYx/svAfQm1yevFhFjvG/9zaBQdNStbbndOw9+2WZlMG1MQk4zHkfOrdLPk+4NHDV/45tdbAk2jNE483BeTkmbICruDoi2t47brBHomNdw1pzq1XM03GsjDD7565lHVIYQuifNo3WIe4QfL+VyoUtOZ6GiYyp/9FB0vCKE6o+aEFJksbx3WTUE+h335ro6CGMB7J44dAXZ53v3BBQG2Ae3Bqjgeyvmr5kmeVJXy5x9ClW4YHzuFaQsoLX3CwohLLVfI30maiTphrBHGzNE=`;</script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
